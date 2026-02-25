@@ -1,0 +1,17 @@
+{
+  "feature_order": [
+    "feature_a",
+    "feature_b",
+    "feature_c"
+  ],
+  "mean": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "std": [
+    1.0,
+    1.0,
+    1.0
+  ]
+}
