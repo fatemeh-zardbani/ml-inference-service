@@ -5,3 +5,6 @@ pydantic
 # testing
 pytest
 httpx
+
+# load testing
+requests
