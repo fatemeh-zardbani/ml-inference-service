@@ -13,6 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy application code
 COPY . /app
 
+# set environment variables
+ENV MODEL_SOURCE=local
+ENV MODEL_PATH=/app/app/model_artifacts
+
 # ensure model artifacts exist (optional; smoke_test will create on first run)
 # ENV PYTHONPATH=/app
 

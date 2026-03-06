@@ -2,12 +2,16 @@
 
 A production-ready REST API for machine learning inference, built with FastAPI. This service loads a trained linear regression model and provides predictions on input features via HTTP endpoints. It demonstrates best practices for input validation, error handling, testing, containerization, and performance monitoring.
 
-## Features
+## Configuration
 
-- REST API with input validation and structured responses
-- Unit tests for logic and API endpoints
-- Docker containerization
-- Load testing script
+The service uses environment variables for configuration:
+
+- `MODEL_SOURCE`: Source of the model (currently only "local" supported).
+- `MODEL_PATH`: Path to the directory containing `model.pkl` and `preprocess.json`.
+
+Defaults:
+- `MODEL_SOURCE=local`
+- `MODEL_PATH=app/model_artifacts` (local) or `/app/app/model_artifacts` (Docker)
 
 ## Architecture
 
@@ -37,6 +41,7 @@ The service separates concerns: the API layer handles HTTP and validation, while
    ```bash
    uvicorn app.main:app --reload
    ```
+   The model will be loaded at startup from `app/model_artifacts/`.
 
 3. Test health endpoint:
    ```bash
@@ -61,6 +66,7 @@ The service separates concerns: the API layer handles HTTP and validation, while
    ```bash
    docker run --rm -p 8000:8000 ml-service
    ```
+   The container sets `MODEL_PATH=/app/app/model_artifacts` and loads the model at startup.
 
 3. Test as above, replacing `localhost` with container IP if needed.
 
@@ -161,7 +167,7 @@ Requests per second: 81.04
 ### Latency Considerations
 
 - Current latency is low (~10-25ms) for CPU-bound linear models.
+- Model is loaded once at startup to avoid per-request overhead.
 - For higher throughput, use async workers (e.g., Gunicorn with Uvicorn workers).
-- Cache model in memory at startup to avoid reloads.
 - Monitor p95 latency; aim for <100ms for real-time apps.
 - GPU acceleration or model optimization (e.g., ONNX) for complex models.

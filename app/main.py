@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, List, Union
 import sys
 import time
+import os
 from pathlib import Path
 
 # Add src to path
@@ -12,6 +13,17 @@ sys.path.append(str(PROJECT_ROOT / "src"))
 
 from model.load import load_model
 from model.predict import predict
+
+# -- configuration -----------------------------------------------------------
+
+MODEL_SOURCE = os.getenv("MODEL_SOURCE", "local")
+MODEL_PATH = Path(os.getenv("MODEL_PATH", "app/model_artifacts"))
+
+# -- global model instance ---------------------------------------------------
+
+loaded_model = None
+
+# -- app ---------------------------------------------------------------------
 
 app = FastAPI()
 
@@ -49,20 +61,35 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content={"error": "internal server error"},
     )
 
+# -- startup -----------------------------------------------------------------
+
+@app.on_event("startup")
+async def startup_event():
+    global loaded_model
+    try:
+        if MODEL_SOURCE == "local":
+            loaded_model = load_model(MODEL_PATH)
+        else:
+            raise ValueError(f"Unsupported MODEL_SOURCE: {MODEL_SOURCE}")
+        print(f"Model loaded successfully from {MODEL_PATH}")
+    except Exception as e:
+        print(f"Failed to load model: {e}")
+        raise RuntimeError(f"Model loading failed: {e}")
+
 # -- health -----------------------------------------------------------------
 
 @app.get("/health")
 def health():
+    if loaded_model is None:
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "error": "model not loaded"})
     return {"status": "healthy"}
 
 # -- prediction -------------------------------------------------------------
 
 @app.post("/predict")
 def predict_endpoint(request: PredictRequest):
-    try:
-        model = load_model()
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if loaded_model is None:
+        raise HTTPException(status_code=503, detail="model not loaded")
 
     # convert Pydantic models into plain dictionaries; predict expects mappings
     if isinstance(request.data, list):
@@ -72,7 +99,7 @@ def predict_endpoint(request: PredictRequest):
 
     start = time.perf_counter()
     try:
-        predictions = predict(model, input_data)
+        predictions = predict(loaded_model, input_data)
     except Exception as e:
         # propagate a standardized error message for callers
         raise HTTPException(status_code=500, detail=f"model inference error: {e}")
@@ -84,7 +111,7 @@ def predict_endpoint(request: PredictRequest):
 
     response = {
         "predictions": predictions,
-        "model_version": getattr(model, "version", "unknown"),
+        "model_version": getattr(loaded_model.model, "version", "unknown"),
         "latency_ms": round(latency_ms, 2),
     }
     return response

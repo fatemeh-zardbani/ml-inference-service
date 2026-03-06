@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ARTIFACT_DIR = PROJECT_ROOT / "app" / "model_artifacts"
-MODEL_PATH = ARTIFACT_DIR / "model.pkl"
-PREPROCESS_PATH = ARTIFACT_DIR / "preprocess.json"
+DEFAULT_ARTIFACT_DIR = PROJECT_ROOT / "app" / "model_artifacts"
 
 
 @dataclass(frozen=True)
@@ -44,10 +43,22 @@ def _load_preprocess_config(path: Path) -> PreprocessConfig:
     return PreprocessConfig(feature_order=feature_order, mean=mean, std=std)
 
 
-def load_model() -> ModelType:
-    """Load the serialized model and preprocessing config."""
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"Model artifact not found at {MODEL_PATH}.")
+def load_model(artifact_dir: Path = DEFAULT_ARTIFACT_DIR) -> ModelType:
+    """Load the serialized model and preprocessing config from the given directory."""
+    model_path = artifact_dir / "model.pkl"
+    preprocess_path = artifact_dir / "preprocess.json"
+
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model artifact not found at {model_path}.")
+    if not preprocess_path.exists():
+        raise FileNotFoundError(f"Preprocess config not found at {preprocess_path}.")
+
+    with model_path.open("rb") as handle:
+        model = pickle.load(handle)
+
+    preprocess = _load_preprocess_config(preprocess_path)
+
+    return LoadedModel(model=model, preprocess=preprocess)
     if not PREPROCESS_PATH.exists():
         raise FileNotFoundError(
             f"Preprocess config not found at {PREPROCESS_PATH}."
