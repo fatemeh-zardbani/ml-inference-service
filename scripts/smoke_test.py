@@ -27,7 +27,7 @@ def _ensure_demo_artifacts() -> None:
         "mean": [0.0, 0.0, 0.0],
         "std": [1.0, 1.0, 1.0],
     }
-    model = LinearModel(weights=[0.5, -0.25, 1.0], bias=0.1)
+    model = LinearModel(weights=[0.5, -0.25, 1.0], bias=0.1, version="0.1")
 
     with MODEL_PATH.open("wb") as handle:
         pickle.dump(model, handle)

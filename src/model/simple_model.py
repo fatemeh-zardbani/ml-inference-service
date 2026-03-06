@@ -8,6 +8,7 @@ from typing import List, Sequence
 class LinearModel:
     weights: List[float]
     bias: float
+    version: str = "0.1"  # simple version string to report in API
 
     def predict(self, inputs: Sequence[Sequence[float]]) -> List[float]:
         outputs: List[float] = []
