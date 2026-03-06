@@ -1,6 +1,6 @@
-# ml-inference-service
+# ML Inference Service
 
-A simple ML inference service built with FastAPI, demonstrating production-ready practices.
+A production-ready REST API for machine learning inference, built with FastAPI. This service loads a trained linear regression model and provides predictions on input features via HTTP endpoints. It demonstrates best practices for input validation, error handling, testing, containerization, and performance monitoring.
 
 ## Features
 
@@ -8,6 +8,21 @@ A simple ML inference service built with FastAPI, demonstrating production-ready
 - Unit tests for logic and API endpoints
 - Docker containerization
 - Load testing script
+
+## Architecture
+
+```mermaid
+graph TD
+    A[Client] --> B[FastAPI Server]
+    B --> C[Input Validation (Pydantic)]
+    C --> D[Model Loader]
+    D --> E[Predict Function]
+    E --> F[Structured Response]
+    B --> G[Health Endpoint]
+    D -.-> H[Model Artifacts (pickle + json)]
+```
+
+The service separates concerns: the API layer handles HTTP and validation, while ML logic remains in the `src/` directory.
 
 ## Quick Start
 
@@ -48,6 +63,38 @@ A simple ML inference service built with FastAPI, demonstrating production-ready
    ```
 
 3. Test as above, replacing `localhost` with container IP if needed.
+
+## API Examples
+
+### Health Check
+```bash
+curl http://localhost:8000/health
+# {"status": "healthy"}
+```
+
+### Single Prediction
+```bash
+curl -X POST http://localhost:8000/predict \
+     -H "Content-Type: application/json" \
+     -d '{"data": {"feature_a": 1.0, "feature_b": 0.5, "feature_c": -1.0}}'
+# {"predictions": [-0.525], "model_version": "0.1", "latency_ms": 12.34}
+```
+
+### Batch Prediction
+```bash
+curl -X POST http://localhost:8000/predict \
+     -H "Content-Type: application/json" \
+     -d '{"data": [{"feature_a": 1.0, "feature_b": 0.5, "feature_c": -1.0}, {"feature_a": 0.0, "feature_b": 0.0, "feature_c": 0.0}]}'
+# {"predictions": [-0.525, 0.1], "model_version": "0.1", "latency_ms": 15.67}
+```
+
+### Invalid Input (Missing Field)
+```bash
+curl -X POST http://localhost:8000/predict \
+     -H "Content-Type: application/json" \
+     -d '{"data": {"feature_a": 1.0}}'
+# {"error": "field required"}
+```
 
 ## Testing
 
@@ -93,3 +140,28 @@ Requests per second: 81.04
   - Model loading happens on every request (no caching); in production, load once at startup.
   - No rate limiting or authentication; add these for production use.
 - **Improvements**: Implement async inference, model caching, and horizontal scaling for higher loads.
+
+## Operational Notes
+
+### Model Versioning Strategy
+
+- Models are versioned with a simple string (e.g., "0.1") stored in the model artifact.
+- Version is returned in every prediction response for traceability.
+- In production, use semantic versioning and store models in a registry (e.g., MLflow, S3) with rollback capabilities.
+- API should support multiple model versions via URL paths (e.g., `/v1/predict`, `/v2/predict`).
+
+### Failure Modes
+
+- **Input Validation Failures**: Invalid JSON or missing fields return 422 with details.
+- **Model Loading Failures**: Missing artifacts return 500; log and alert on this.
+- **Inference Errors**: Exceptions during prediction return 500 with sanitized messages.
+- **Timeouts**: Simulated >5s latency returns 504; in production, use real timeouts and circuit breakers.
+- **Resource Exhaustion**: No built-in rate limiting; monitor CPU/memory and scale horizontally.
+
+### Latency Considerations
+
+- Current latency is low (~10-25ms) for CPU-bound linear models.
+- For higher throughput, use async workers (e.g., Gunicorn with Uvicorn workers).
+- Cache model in memory at startup to avoid reloads.
+- Monitor p95 latency; aim for <100ms for real-time apps.
+- GPU acceleration or model optimization (e.g., ONNX) for complex models.
